@@ -12,7 +12,11 @@ import java.util.Properties
 import java.io.FileInputStream
 import com.vpals.apps.entities.SourceInfoDetails
 import com.vpals.apps.entities.TargetInfoDetails
-
+import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.Statement
+import java.sql.ResultSet
+import java.sql.ResultSetMetaData
 
 /**
  * @author ${user.name}
@@ -57,6 +61,7 @@ object App {
     sftp.disconnect()
     session.disconnect()
     logger.info("closing all streams")
+    createTable()
   }
 
   def readProperties(configFilePath : String) {
@@ -72,5 +77,30 @@ object App {
     srcDetails.fileFormat_(prop.getProperty("fileFormat"))
     targetDetails.targetPath_(prop.getProperty("targetPath"))
     targetDetails.tableName_(prop.getProperty("tableName"))
+    targetDetails.tableSchema_(prop.getProperty("tableSchema"))
+    targetDetails.sparkUrl_(prop.getProperty("sparkConnUrl"))
+  }
+
+  def createTable() {
+    Class.forName("org.apache.hive.jdbc.HiveDriver");
+    var conn: Connection = DriverManager.getConnection(targetDetails.sparkUrl,srcDetails.userName, srcDetails.password)
+    var stmt: Statement = conn.createStatement()
+    var sql1 = "DROP TABLE IF EXISTS " + targetDetails.tableName
+    var pathToRegister = "\"" + targetDetails.targetPath + "\"" 
+    var sql2 = "CREATE TABLE " + targetDetails.tableName  + " (" + targetDetails.tableSchema + ") USING com.databricks.spark.csv OPTIONS (path " + pathToRegister + ", header \"false\")"
+    //var sql3 = "SELECT * FROM " + targetDetails.tableName
+    stmt.executeQuery(sql1)
+    stmt.executeQuery(sql2)
+    /*var rs: ResultSet = stmt.executeQuery(sql3)
+    var metaData: ResultSetMetaData = rs.getMetaData()
+    var columnNumber = metaData.getColumnCount()
+    while (rs.next()) {
+      for (i <- 1 to columnNumber) {
+        if (i > 1) System.out.print(",  ");
+        var columnValue = rs.getString(i);
+        System.out.print(columnValue + " " + metaData.getColumnName(i));
+      }
+      System.out.println("");
+    }*/
   }
 }
